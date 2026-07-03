@@ -1,0 +1,7 @@
+[build]
+  publish = "sales-agent-ui"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
