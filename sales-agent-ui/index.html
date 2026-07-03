@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Intelligence Agent — Multi-Agent n8n + Groq Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/animations.css">
+<link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand"><span class="dot"></span> sales-intelligence-agent</div>
+    <div class="nav-links">
+      <a href="#demo">Live demo</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#stack">Stack</a>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <section class="hero">
+    <div class="eyebrow">● 28-node n8n workflow · case study</div>
+    <h1>A URL goes in. A <em>personalized sales pitch</em> comes out — in one automated run.</h1>
+    <p class="lede">
+      This pipeline scrapes a prospect's website, researches their company, has three
+      Groq-hosted LLM agents reason about pain points and positioning, then drafts and
+      delivers a ready-to-send outreach email — with zero manual steps.
+    </p>
+    <div class="hero-actions">
+      <a href="#demo" class="btn btn-primary">Run it live →</a>
+      <a href="#pipeline" class="btn btn-ghost">See the architecture</a>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat"><div class="num">28</div><div class="lbl">workflow nodes</div></div>
+      <div class="stat"><div class="num">3</div><div class="lbl">Groq LLM agents</div></div>
+      <div class="stat"><div class="num">6</div><div class="lbl">parallel extractors</div></div>
+      <div class="stat"><div class="num">3</div><div class="lbl">delivery channels</div></div>
+    </div>
+  </section>
+
+  <section id="demo">
+    <div class="section-head">
+      <div class="section-tag">Live demo</div>
+      <h2>Run the actual workflow</h2>
+      <p>This calls the real n8n webhook below — not a mock. Point it at your own local n8n instance to see it fire end to end.</p>
+    </div>
+
+    <div class="demo-panel">
+      <div class="demo-head">
+        <div class="demo-head-left">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <div class="demo-title">POST /webhook/sales-intelligence-agent</div>
+        </div>
+        <div class="status-pill" id="statusPill">idle</div>
+      </div>
+
+      <div class="demo-body">
+        <div class="field-row">
+          <div class="field">
+            <label for="clientName">Client name</label>
+            <input id="clientName" type="text" placeholder="Acme Corporation">
+          </div>
+          <div class="field">
+            <label for="targetUrl">Website URL</label>
+            <input id="targetUrl" type="text" placeholder="https://example.com">
+          </div>
+        </div>
+
+        <div class="endpoint-note">
+          <b>Endpoint:</b> <span id="endpointText">http://localhost:5678/webhook/sales-intelligence-agent</span>
+        </div>
+
+        <button class="btn btn-primary btn-run" id="runBtn">▶ Run workflow</button>
+
+        <!-- overall progress -->
+        <div class="progress-shell" id="progressShell" hidden>
+          <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="progress-label" id="progressLabel">0%</div>
+        </div>
+
+        <!-- workflow animation -->
+        <div class="workflow-anim" id="workflowAnim" hidden></div>
+
+        <!-- agent status -->
+        <div class="agent-panel" id="agentPanel" hidden>
+          <div class="panel-title">🧠 AI agents</div>
+          <div class="agent-list" id="agentList"></div>
+        </div>
+
+        <!-- console -->
+        <div class="console" id="consoleOut"></div>
+
+        <!-- report -->
+        <div class="report-card" id="reportCard" hidden></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pipeline">
+    <div class="section-head">
+      <div class="section-tag">Architecture</div>
+      <h2>Six phases, twenty-eight nodes</h2>
+      <p>Every step is a real node in the n8n workflow — nothing here is simplified for the diagram.</p>
+    </div>
+
+    <div class="phase">
+      <div class="phase-row">
+        <div class="phase-num"><span>01</span> / intake</div>
+        <div>
+          <div class="phase-name">Receive &amp; normalize</div>
+          <div class="node-list">
+            <span class="node-chip">1. Webhook – Receive URL</span>
+            <span class="node-chip">2. Set – Normalize Input</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-row">
+        <div class="phase-num"><span>02</span> / scrape</div>
+        <div>
+          <div class="phase-name">Fetch &amp; extract, in parallel</div>
+          <div class="node-list">
+            <span class="node-chip">3. HTTP – Fetch Website HTML</span>
+            <span class="node-chip">4. Extract – Title &amp; Meta</span>
+            <span class="node-chip">5. Extract – Body Text</span>
+            <span class="node-chip">6. Extract – Tech Signals</span>
+            <span class="node-chip">7. Code – Clean &amp; Merge</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-row">
+        <div class="phase-num"><span>03</span> / enrich</div>
+        <div>
+          <div class="phase-name">External company research</div>
+          <div class="node-list">
+            <span class="node-chip">8. HTTP – SerpAPI Company Search</span>
+            <span class="node-chip">9. Code – Parse Results</span>
+            <span class="node-chip">10. Merge – Scrape + Search</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-row">
+        <div class="phase-num"><span>04</span> / reason</div>
+        <div>
+          <div class="phase-name">Three LLM agents, run on Groq (Llama 3.3 70B)</div>
+          <div class="node-list">
+            <span class="node-chip llm">11. Agent – Pain Point Analysis</span>
+            <span class="node-chip">12. Code – Parse Pain Points</span>
+            <span class="node-chip llm">13. Agent – Company Research</span>
+            <span class="node-chip">14. Code – Parse Research</span>
+            <span class="node-chip">15. Merge – Aggregate Outputs</span>
+            <span class="node-chip llm">16. Agent – Personalization</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-row">
+        <div class="phase-num"><span>05</span> / compose</div>
+        <div>
+          <div class="phase-name">Draft, validate, build the report</div>
+          <div class="node-list">
+            <span class="node-chip">17. Code – Parse Pitch</span>
+            <span class="node-chip llm">18. Agent – Sales Copywriter</span>
+            <span class="node-chip">19. Code – Parse Final Copy</span>
+            <span class="node-chip">20. IF – Validate Output</span>
+            <span class="node-chip">23. Code – Build Final HTML Report</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-row">
+        <div class="phase-num"><span>06</span> / deliver</div>
+        <div>
+          <div class="phase-name">Three channels, fired in parallel</div>
+          <div class="node-list">
+            <span class="node-chip">24. Gmail – Send Draft</span>
+            <span class="node-chip">25. Sheets – Log Lead</span>
+            <span class="node-chip">26. Slack – Notify Team</span>
+            <span class="node-chip">27. Set – Format Response</span>
+            <span class="node-chip">28. Respond to Webhook</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="stack">
+    <div class="section-head">
+      <div class="section-tag">Stack</div>
+      <h2>What's actually running underneath</h2>
+    </div>
+    <div class="stack-grid">
+      <div class="stack-item">
+        <div class="role">Orchestration</div>
+        <div class="name">n8n</div>
+        <div class="desc">28-node visual workflow, self-hosted, driving every branch and merge in the pipeline.</div>
+      </div>
+      <div class="stack-item">
+        <div class="role">Reasoning</div>
+        <div class="name">Groq · Llama 3.3 70B</div>
+        <div class="desc">Three purpose-built agents: pain-point analysis, company research, and copywriting.</div>
+      </div>
+      <div class="stack-item">
+        <div class="role">Research</div>
+        <div class="name">SerpAPI</div>
+        <div class="desc">Live company news search feeding the research agent's context.</div>
+      </div>
+      <div class="stack-item">
+        <div class="role">Delivery</div>
+        <div class="name">Gmail</div>
+        <div class="desc">Drafts the outreach email straight into the sales rep's inbox.</div>
+      </div>
+      <div class="stack-item">
+        <div class="role">Tracking</div>
+        <div class="name">Google Sheets</div>
+        <div class="desc">Every lead logged automatically for pipeline visibility.</div>
+      </div>
+      <div class="stack-item">
+        <div class="role">Alerting</div>
+        <div class="name">Slack</div>
+        <div class="desc">Notifies the sales team the moment a new lead report is ready.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-row">
+      <div class="footer-left">built with n8n + Groq · workflow: sales-intelligence-agent.json</div>
+      <div class="footer-right">
+        <a href="#demo">Live demo</a>
+        <a href="#pipeline">Architecture</a>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+<script src="js/workflow.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
