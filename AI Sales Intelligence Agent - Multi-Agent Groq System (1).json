@@ -1,0 +1,948 @@
+{
+  "name": "AI Sales Intelligence Agent - Multi-Agent Groq System",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sales-intelligence-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ab53021e-e0dc-4609-9a58-520809fcb3a8",
+      "name": "1. Webhook - Receive URL",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        32,
+        272
+      ],
+      "webhookId": "cb0789e5-386b-4101-88b6-22f00edb0dcb"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "target_url",
+              "value": "={{ $json.body.url }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "client_name",
+              "value": "={{ $json.body.client_name || 'Prospect' }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "request_id",
+              "value": "={{ $now.toMillis() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d56a5b8a-014e-4c87-861a-eb5ff5a9091c",
+      "name": "2. Set - Normalize Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.target_url }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "5438d751-7a46-4759-b640-1ab98e62776f",
+      "name": "3. HTTP - Fetch Website HTML",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        464,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "title",
+              "cssSelector": "title"
+            },
+            {
+              "key": "meta_description",
+              "cssSelector": "meta[name=description]",
+              "returnValue": "attribute",
+              "attribute": "content"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "557bdab2-8f29-4d2d-bcc8-c554ff7afd6f",
+      "name": "4. HTML Extract - Title & Meta",
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        848,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "body_text",
+              "cssSelector": "body"
+            }
+          ]
+        },
+        "options": {
+          "trimValues": true
+        }
+      },
+      "id": "51b1f87a-f019-487c-885a-3311ea992c99",
+      "name": "5. HTML Extract - Body Text",
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        832,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "has_chat_widget",
+              "cssSelector": "script[src*=chat]",
+              "returnArray": true
+            },
+            {
+              "key": "has_forms",
+              "cssSelector": "form",
+              "returnArray": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f6acd896-2152-4da3-99e5-0d36654c8290",
+      "name": "6. HTML Extract - Tech Signals",
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        768,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst merged = {};\nfor (const item of items) {\n  Object.assign(merged, item.json);\n}\nmerged.body_text_short = (merged.body_text || '').slice(0, 3000);\nreturn [{ json: merged }];"
+      },
+      "id": "5a40f032-62e0-4c1f-8edb-56b718b6c8fb",
+      "name": "7. Code - Clean & Merge Scraped Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $('2. Set - Normalize Input').item.json.client_name }} company news"
+            },
+            {
+              "name": "api_key",
+              "value": "=6103f2fa3671cc5bd3c654a357a57476f24a35454ddf7ef8e0f6a76d57fe1049"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d3f94c6d-15d1-4f35-9f94-9727bd906ecb",
+      "name": "8. HTTP - SerpAPI Company Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1328,
+        624
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "gHXRYz6tu8RO2h17",
+          "name": "Header Auth account 15"
+        },
+        "httpQueryAuth": {
+          "id": "KhxuqwZMtryPojfT",
+          "name": "Query Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nconst results = (res.organic_results || []).slice(0, 5).map(r => ({ title: r.title, snippet: r.snippet }));\nreturn [{ json: { search_results: results } }];"
+      },
+      "id": "9e43ff1d-ef8f-470c-a90c-ec7fe9e2ef54",
+      "name": "9. Code - Parse SerpAPI Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "190a20db-63a9-4cd5-9ffb-8a573b9fed0f",
+      "name": "10. Merge - Scrape + Search",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1696,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"llama-3.3-70b-versatile\", temperature: 0.4, messages: [ { role: \"system\", content: \"You are a Pain-Point Analysis Agent. Given website content, identify 3-5 business weaknesses (slow load hints, no CTA, outdated design cues, missing chatbot, no blog/content). Respond ONLY in strict JSON: {\\\"pain_points\\\": [\\\"...\\\"]}\" }, { role: \"user\", content: $json.body_text_short } ] }) }}",
+        "options": {}
+      },
+      "id": "17ebb935-3662-434b-a367-89b6efa7e959",
+      "name": "11. Groq Agent - Pain Point Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2064,
+        -16
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "fCd4ZqflRhViVxtf",
+          "name": "Header Auth account 9"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.choices[0].message.content;\nlet parsed;\ntry { parsed = JSON.parse(raw); } catch(e) { parsed = { pain_points: [raw] }; }\nreturn [{ json: parsed }];"
+      },
+      "id": "1de99a74-0c25-449d-9155-9c70a5941cbe",
+      "name": "12. Code - Parse Pain Points",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"llama-3.3-70b-versatile\", temperature: 0.3, messages: [ { role: \"system\", content: \"You are a Company Research Agent. Summarize the company using search snippets provided. Respond ONLY in strict JSON: {\\\"summary\\\": \\\"...\\\", \\\"industry\\\": \\\"...\\\"}\" }, { role: \"user\", content: JSON.stringify($json.search_results) } ] }) }}",
+        "options": {}
+      },
+      "id": "be196ab4-7b72-44c4-abef-edf5d7c44dcd",
+      "name": "13. Groq Agent - Company Research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2048,
+        784
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "AFA3g4RDgE0AH6vp",
+          "name": "Header Auth account 10"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.choices[0].message.content;\nlet parsed;\ntry { parsed = JSON.parse(raw); } catch(e) { parsed = { summary: raw, industry: 'Unknown' }; }\nreturn [{ json: parsed }];"
+      },
+      "id": "205f9a33-3d79-4890-a060-0acc577934e3",
+      "name": "14. Code - Parse Research",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2512,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "763d6880-7b9f-4e7d-aa89-81550583221b",
+      "name": "15. Merge - Aggregate Agent Outputs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        2304,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"llama-3.3-70b-versatile\", temperature: 0.6, messages: [ { role: \"system\", content: \"You are a Personalization Agent. Using the pain points and company research, draft a short personalized sales pitch (100-150 words). Respond ONLY in strict JSON: {\\\"pitch\\\": \\\"...\\\"}\" }, { role: \"user\", content: JSON.stringify($json) } ] }) }}",
+        "options": {}
+      },
+      "id": "8bccd23a-cf6c-48ec-8e51-61a5fd5bb99b",
+      "name": "16. Groq Agent - Personalization",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2832,
+        160
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "0XrxmaJHYR6PJwIY",
+          "name": "Header Auth account 11"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.choices[0].message.content;\nlet parsed;\ntry { parsed = JSON.parse(raw); } catch(e) { parsed = { pitch: raw }; }\nreturn [{ json: parsed }];"
+      },
+      "id": "723edc0e-32b8-4596-b4a3-e015eebc8cdf",
+      "name": "17. Code - Parse Pitch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3168,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"llama-3.3-70b-versatile\", temperature: 0.5, messages: [ { role: \"system\", content: \"You are a Sales Copywriter Agent. Polish this pitch into a compelling cold email with a catchy subject line and clear CTA. Respond ONLY in strict JSON: {\\\"subject\\\": \\\"...\\\", \\\"email_body\\\": \\\"...\\\"}\" }, { role: \"user\", content: $json.pitch } ] }) }}",
+        "options": {}
+      },
+      "id": "e8b53737-59e2-4d2c-8243-f38119162e57",
+      "name": "18. Groq Agent - Sales Copywriter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3168,
+        416
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "z7W1RCS09ymHbhhL",
+          "name": "Header Auth account 14"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.choices[0].message.content;\nlet parsed;\ntry { parsed = JSON.parse(raw); } catch(e) { parsed = { subject: 'Quick idea for your website', email_body: raw }; }\nreturn [{ json: parsed }];"
+      },
+      "id": "e9fd7541-1a41-4d9c-a41d-e374fa831214",
+      "name": "19. Code - Parse Final Copy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3568,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.email_body }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fccca8da-7513-4591-90d1-4743f6562a83",
+      "name": "20. IF - Validate Output",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3536,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst html = `<html><body style=\"font-family:Arial\"><h2>Sales Intelligence Report</h2><p><b>Subject:</b> ${d.subject}</p><p>${(d.email_body || '').replace(/\\n/g,'<br>')}</p></body></html>`;\nreturn [{ json: { ...d, final_html_report: html } }];"
+      },
+      "id": "77cd7caa-1bc0-40a5-b6f6-b395ca3cabb9",
+      "name": "23. Code - Build Final HTML Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4400,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "=   vaibhavsable150@gmail.com\n",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.email_body }}",
+        "options": {}
+      },
+      "id": "add89ef1-51de-435d-8500-8bb53dae7f2e",
+      "name": "24. Gmail - Send Sales Email Draft",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        4624,
+        144
+      ],
+      "webhookId": "a3db0140-100b-494c-adaf-74a2ce6357bf",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "zPcm2ltgbPq5BIor",
+          "name": "Gmail account 36"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "19ryLRE4DqWNNJkFDurVDkJK2D5adK-bOBES3r4S5jlc",
+          "mode": "list",
+          "cachedResultName": "gf",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19ryLRE4DqWNNJkFDurVDkJK2D5adK-bOBES3r4S5jlc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Vaibhav",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19ryLRE4DqWNNJkFDurVDkJK2D5adK-bOBES3r4S5jlc/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "URL": "={{ $('2. Set - Normalize Input').item.json.target_url }}",
+            "Subject": "={{ $json.subject }}",
+            "Pitch": "={{ $json.email_body }}",
+            "Timestamp": "={{ $now }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "URL",
+              "displayName": "URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Subject",
+              "displayName": "Subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Pitch",
+              "displayName": "Pitch",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "b00b1e46-c2bc-4521-84b1-fba0dfe1a3ec",
+      "name": "25. Google Sheets - Log Lead",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        4464,
+        480
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "4xQctwuM02UgETLA",
+          "name": "Google Sheets account 19"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BF2L15YD7",
+          "mode": "id"
+        },
+        "text": "=New AI-generated lead report ready for {{ $('2. Set - Normalize Input').item.json.client_name }}: {{ $json.subject }}",
+        "otherOptions": {}
+      },
+      "id": "69b28948-00d4-4c13-bd75-b1eaeed327cb",
+      "name": "26. Slack - Notify Sales Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        4400,
+        736
+      ],
+      "webhookId": "a83424bc-93b9-4329-9b81-52029c17ef59",
+      "credentials": {
+        "slackApi": {
+          "id": "HIm09uoJ9q6fk8rK",
+          "name": "Slack account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "r1",
+              "name": "status",
+              "value": "success",
+              "type": "string"
+            },
+            {
+              "id": "r2",
+              "name": "report_html",
+              "value": "={{ $('23. Code - Build Final HTML Report').item.json.final_html_report }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6991d397-cf6a-4abf-94ac-72fea834cb95",
+      "name": "27. Set - Format Webhook Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4960,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: $json.status, report_html: $json.report_html } }}",
+        "options": {}
+      },
+      "id": "a557a649-6c31-4a2a-b2ff-5b823ef05d87",
+      "name": "28. Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        5312,
+        400
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "1. Webhook - Receive URL": {
+      "main": [
+        [
+          {
+            "node": "2. Set - Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Set - Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "3. HTTP - Fetch Website HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. HTTP - Fetch Website HTML": {
+      "main": [
+        [
+          {
+            "node": "4. HTML Extract - Title & Meta",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "5. HTML Extract - Body Text",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "6. HTML Extract - Tech Signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. HTML Extract - Title & Meta": {
+      "main": [
+        [
+          {
+            "node": "7. Code - Clean & Merge Scraped Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. HTML Extract - Body Text": {
+      "main": [
+        [
+          {
+            "node": "7. Code - Clean & Merge Scraped Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6. HTML Extract - Tech Signals": {
+      "main": [
+        [
+          {
+            "node": "7. Code - Clean & Merge Scraped Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. Code - Clean & Merge Scraped Data": {
+      "main": [
+        [
+          {
+            "node": "10. Merge - Scrape + Search",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "8. HTTP - SerpAPI Company Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8. HTTP - SerpAPI Company Search": {
+      "main": [
+        [
+          {
+            "node": "9. Code - Parse SerpAPI Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9. Code - Parse SerpAPI Results": {
+      "main": [
+        [
+          {
+            "node": "10. Merge - Scrape + Search",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "10. Merge - Scrape + Search": {
+      "main": [
+        [
+          {
+            "node": "11. Groq Agent - Pain Point Analysis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "13. Groq Agent - Company Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Groq Agent - Pain Point Analysis": {
+      "main": [
+        [
+          {
+            "node": "12. Code - Parse Pain Points",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Code - Parse Pain Points": {
+      "main": [
+        [
+          {
+            "node": "15. Merge - Aggregate Agent Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13. Groq Agent - Company Research": {
+      "main": [
+        [
+          {
+            "node": "14. Code - Parse Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14. Code - Parse Research": {
+      "main": [
+        [
+          {
+            "node": "15. Merge - Aggregate Agent Outputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "15. Merge - Aggregate Agent Outputs": {
+      "main": [
+        [
+          {
+            "node": "16. Groq Agent - Personalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "16. Groq Agent - Personalization": {
+      "main": [
+        [
+          {
+            "node": "17. Code - Parse Pitch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "17. Code - Parse Pitch": {
+      "main": [
+        [
+          {
+            "node": "18. Groq Agent - Sales Copywriter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "18. Groq Agent - Sales Copywriter": {
+      "main": [
+        [
+          {
+            "node": "19. Code - Parse Final Copy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "19. Code - Parse Final Copy": {
+      "main": [
+        [
+          {
+            "node": "20. IF - Validate Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "20. IF - Validate Output": {
+      "main": [
+        [
+          {
+            "node": "23. Code - Build Final HTML Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "23. Code - Build Final HTML Report": {
+      "main": [
+        [
+          {
+            "node": "24. Gmail - Send Sales Email Draft",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "25. Google Sheets - Log Lead",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "26. Slack - Notify Sales Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "24. Gmail - Send Sales Email Draft": {
+      "main": [
+        [
+          {
+            "node": "27. Set - Format Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "25. Google Sheets - Log Lead": {
+      "main": [
+        [
+          {
+            "node": "27. Set - Format Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "26. Slack - Notify Sales Team": {
+      "main": [
+        [
+          {
+            "node": "27. Set - Format Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "27. Set - Format Webhook Response": {
+      "main": [
+        [
+          {
+            "node": "28. Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4d93869d-59fd-4959-9263-bb8e731a0bfe",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "20a2b29b41e62032ff4c50ddaa2eadfd59ac09002295456d9ff46f64e0e49af7"
+  },
+  "id": "j7n0pv7Ra9AnJq4g",
+  "tags": []
+}
